@@ -1,21 +1,45 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useAuthStore } from '../store/useAuthStore.js';
 import AuthImagePattern from '../components/AuthImagePattern';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const LoginPage = () => {
+
+  const { authUser, isOtpPending, hasLoggedIn } = useAuthStore();
+
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: ""
   });
 
+  const navigate = useNavigate();
+
   const { login, isLoggingIn } = useAuthStore();
+
+  const validateForm = () => {
+    const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
+
+    if (!emailRegex.test(formData.email)) {
+      toast.error("Invalid email format");
+      return false;  // Explicitly return false
+    }
+
+    if (!formData.password.trim()) {
+      toast.error("Enter Password");
+      return false;  // Explicitly return false
+    }
+
+    return true; // Everything is valid
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    login(formData);
+    if (validateForm()) {
+      login(formData);
+    }
   }
 
   return (

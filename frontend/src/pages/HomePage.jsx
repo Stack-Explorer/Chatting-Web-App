@@ -3,12 +3,15 @@ import { useChatStore } from '../store/useChatStore'
 import Sidebar from '../components/Sidebar.jsx';
 import NoChatSelected from '../components/NoChatSelected.jsx';
 import ChatContainer from '../components/ChatContainer.jsx';
+import { useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore.js';
+import { useNavigate } from 'react-router-dom';
 
 const HomePage = () => {
 
-  const { selectedUser } = useChatStore();
+  const navigate = useNavigate();
 
+  const { selectedUser } = useChatStore();
 
   return (
     <div className='h-screen bg-base-200'>

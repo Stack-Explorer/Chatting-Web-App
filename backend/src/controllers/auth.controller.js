@@ -2,61 +2,76 @@ import cloudinary from "../lib/cloudinary.js";
 import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt, { genSalt, hash } from "bcryptjs";
+import { sendOTPEmail } from "./nodemailer.controller.js";
+import OTP from "../models/otp.model.js";
 
 export const signup = async (req, res) => {
-    const { fullName, email, password } = req.body;
     try {
 
-        if (!fullName || !email || !password) {
+        console.log("I got called from frontend");
+
+        console.log(`Body data is : `, req.body);
+
+        const { email, fullName, password } = req.body;
+
+        console.log(req.body)
+
+        if (!email || !fullName || !password) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
-        if (!fullName.trim() || !email.trim() || !password.trim()) {
+        if (!email.trim() || !fullName.trim() || !password.trim()) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
-        const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/;
+        if (password.trim().length < 6) {
+            return res.status(401).json({ message: "Password must be at least 6 characters" });
+        }
+
+        const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z]{2,})+$/;
 
         if (!emailRegex.test(email)) {
-            return res.status(400).json({ message: "Enter valid email format" });
-        }
-
-        // Password restriction
-        if (password.length < 6) {
-            return res.status(400).json({ message: "Password must be atleast 6 characters" });
-        }
-        // User checking error handling
-        const user = await User.findOne({ email }); // Find if email already exists
-
-        if (user) return res.status(400).json({ message: "Email already exists" });
-
-        const hashedPassword = await bcrypt.hash(password, 12);
-
-        const newUser = new User({
-            fullName,
-            email,
-            password: hashedPassword
-        });
-
-        if (newUser) {
-            // Generate JWT Token Here.
-            generateToken(newUser._id, res);
-            await newUser.save();
-
-            return res.status(201).json({
-                _id: newUser._id,
-                fullName: newUser.fullName,
-                email: newUser.email,
-                profilePic: newUser.profilePic
-            }) // _Id can be be as Id
-        } else {
-            return res.status(400).json({ message: "Invalid user data" });
+            return res.status(400).json({ message: "Invalid email format" });
         }
 
 
+        const doUserExist = await User.findOne({ email });
+
+        if (doUserExist) return res.status(401).json({ message: "User already exists!" })
+
+        await generateOTP(email, fullName);
+
+        console.log("OTP sent on given email");
+
+        return res.status(201).json({ message: "OTP sent on given email" });
+
+    } catch (err) {
+        console.log(`Error in signup controller : ${err.message}`);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+const generateOTP = async (email, fullName) => {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+
+    console.log(`Generated OTP is ${otp}`)
+
+    await OTP.findOneAndUpdate(
+        { email },
+        { otp, expiresAt },
+        { upsert: true, new: true }
+    )
+
+    const generatedAndSavedOTP = OTP.findOne({ otp });
+
+    console.log(`generatedAndSavedOTP is : ${generatedAndSavedOTP}`);
+
+    try {
+        await sendOTPEmail(email, otp, fullName);
+        return otp;
     } catch (error) {
-        console.log("Error in signup controller : ", error.message);
-        res.status(500).json({ message: "Internal Server Error" })
+        console.log("Error in SendOTP function : ", error.message);
     }
 }
 
@@ -128,3 +143,111 @@ export const checkAuth = (req, res) => {
         return res.status(500).json({ error: "Internal Server Error" });
     }
 }
+
+const verifyOTP = async (originalOTP, userOTP) => {
+    try {
+        if (userOTP !== originalOTP) {
+            return { success: false, message: "Invalid OTP!" }
+        }
+        console.log(`verifyOTP got triggered`)
+        return { success: true, message: "Account Created successfully !" };
+
+    } catch (error) {
+        console.log("Error in verifyOTP controller : ", error.message);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+}
+
+export const getUserDataVerifyAndSaveUser = async (req, res) => {
+
+    try {
+
+        console.log(` getUserDataVerifyAndSaveUser is : ${JSON.stringify(req.body)}`)
+
+        console.log(req.body);
+
+        const { email, fullName, password, userOTP } = req.body;
+
+        console.log(`Email is : ${email} \n fullName is : ${fullName} \n password is : ${password} \n userOTP is : ${userOTP} `)
+
+        const otpEntry = await OTP.findOne({ email }); // Gives whole document
+
+        console.log(`Original OTP is : ${otpEntry.otp}`)
+
+        if (!otpEntry) {
+            return res.status(400).json({ message: "OTP not found. Please request a new OTP." });
+        }
+
+        if (Date.now() > otpEntry.expiresAt) {
+            console.log(`Date got triggered`);
+            return res.status(401).json({ message: "OTP expired. Please request a new OTP." });
+        }
+
+        const verificationResult = await verifyOTP(otpEntry.otp, userOTP);
+
+        if (!verificationResult.success) {
+            return res.status(401).json({ message: verificationResult.message });
+        }
+
+        console.log("OTP verified");
+
+        // naya user tab tak creat enahi hona chahiye jab tak email verify na ho jaaye 
+
+        const hashedPassword = await bcrypt.hash(password, 12);
+
+        const newUser = new User({
+            email,
+            fullName,
+            password: hashedPassword
+        });
+
+        if (!newUser) {
+            return res.status(401).json({ message: "Failed to create account" });
+        }
+
+
+        const saveUser = await newUser.save();
+
+        if (!saveUser) {
+            console.log("User not saved")
+        }
+
+        const tokenGenerated = await generateToken(newUser._id, res);
+
+        if (tokenGenerated) console.log("Token Generated");
+
+        console.log("Account Created Successfully !")
+
+        return res.status(200).json({ message: "Account Created Successfully !" });
+
+    } catch (error) {
+        console.log("Error in getUserDataVerifyAndSaveUser : ", error.message);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+}
+
+export const resendOTP = async (req, res) => {
+    try {
+        const { email, fullName } = req.body;
+
+        if (!email || !fullName) {
+            return res.status(400).json({ message: "Email and fullName are required" });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // Expires in 5 mins
+
+        await OTP.findOneAndUpdate(
+            { email },
+            { otp, expiresAt },
+            { upsert: true, new: true }
+        );
+
+        await sendOTPEmail(email, otp, fullName);
+        return res.status(200).json({ message: "OTP resent successfully" });
+
+    } catch (error) {
+        console.error(`Error in resendOTP controller: ${error.message}`);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};

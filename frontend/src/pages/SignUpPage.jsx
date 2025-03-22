@@ -1,11 +1,14 @@
 import React, { useState } from 'react'
 import { useAuthStore } from '../store/useAuthStore';
-import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare, User } from 'lucide-react';
+import { Eye, EyeOff, Loader, Loader2, Lock, Mail, MessageSquare, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import AuthImagePattern from '../components/AuthImagePattern.jsx';
 import toast from 'react-hot-toast';
 
 const SignUpPage = () => {
+
+  const navigate = useNavigate();
 
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -16,10 +19,18 @@ const SignUpPage = () => {
 
   const { signup, isSigningUp } = useAuthStore(); // state is created for that ...
 
+  if (isSigningUp) {
+    return (
+      <div className='flex h-screen justify-center items-center'>
+        <Loader className='animate-spin size-10' />
+      </div>
+    )
+  }
+
   const validateForm = () => {
     if (!formData.fullName.trim()) return toast.error("Full Name is required");
     if (!formData.email.trim()) return toast.error("Email is required");
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
     if (!emailRegex.test(formData.email)) return toast.error("Invalid email format");
     if (!formData.password) return toast.error("Password is required");
     if (!formData.password, length) return toast.error("Password must be at least 6 characters");
@@ -29,8 +40,15 @@ const SignUpPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (validateForm() === true) {
-      signup(formData);
+    try {
+      if (validateForm() === true) {
+        navigate("/otp-verification");
+        toast.success("OTP sent successfully");
+        signup(formData);
+        console.log(`SignUp form data is : ${ JSON.stringify(formData)}`);
+      }
+    } catch (error) {
+      toast.error("Signup Failed : ", error);
     }
   }
 

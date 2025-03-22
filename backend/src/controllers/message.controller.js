@@ -6,6 +6,7 @@ import { getReceiverSocketId, io } from "../lib/socket.js";
 export const getUsersForSidebar = async (req, res) => {
     try {
         const loggedInUserId = req.user._id // getting req.user from next() by protectRoute
+        console.log(` getSidebar is : ${loggedInUserId}`);
         const filteredUsers = await User.find({ _id: { $ne: loggedInUserId } }).select("-password"); // Automatically got default id will be get by mongodb default
         return res.status(200).json(filteredUsers);
     } catch (error) {
