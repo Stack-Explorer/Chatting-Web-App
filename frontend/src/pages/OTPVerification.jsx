@@ -11,7 +11,7 @@ const OTPVerification = () => {
 
   const navigate = useNavigate();
 
-  const { postUserOTP, authUser, isOtpPending, hasEnteredCorrectCredentials } = useAuthStore();
+  const { postUserOTP, authUser, isOtpPending } = useAuthStore();
 
   const { getUsers } = useChatStore();
 

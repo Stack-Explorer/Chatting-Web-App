@@ -17,7 +17,7 @@ const SignUpPage = () => {
     password: ""
   });
 
-  const { signup, isSigningUp } = useAuthStore(); // state is created for that ...
+  const { signup, isSigningUp,hasCameToOtpPage } = useAuthStore(); // state is created for that ...
 
   if (isSigningUp) {
     return (
@@ -42,6 +42,7 @@ const SignUpPage = () => {
     e.preventDefault();
     try {
       if (validateForm() === true) {
+        useAuthStore.setState({ hasCameToOtpPage: true });
         navigate("/otp-verification");
         toast.success("OTP sent successfully");
         signup(formData);
@@ -70,7 +71,7 @@ const SignUpPage = () => {
             </div>
           </div>
           {/**Name */}
-          <form onSubmit={handleSubmit} className='space-y-6' >
+          <form onSubmit={handleSubmit}  className='space-y-6' >
             <div className="form-control">
               <label className="label">
                 <span className="label-text font-medium">Full Name</span>

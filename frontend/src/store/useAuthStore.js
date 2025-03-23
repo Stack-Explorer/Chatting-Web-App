@@ -18,7 +18,7 @@ export const useAuthStore = create((set, get) => ({
 
     /*OTP related */
 
-    hasEnteredCorrectCredentials : false,
+    hasEnteredCorrectCredentials: false,
 
     isCheckingAuth: false,
     isCheckingAuth: true, // default isCheckingAuth = true
@@ -26,7 +26,9 @@ export const useAuthStore = create((set, get) => ({
     isOtpPending: true,
     isPostingUserOTP: false,
 
-    hasSubmittedDetails : false,
+    hasCameToOtpPage: false,
+    hasSubmittedDetails: false,
+
 
     checkAuth: async () => {
         try {
@@ -129,7 +131,7 @@ export const useAuthStore = create((set, get) => ({
             const res = await axiosInstance.post("/auth/getUserDataVerifyAndSaveUser", { userOTP, email, fullName, password });
             set({ authUser: res.data, isOtpPending: false, isVerified: true });
             console.log(`Data reached`);
-            set({ hasEnteredCorrectCredentials: true , hasSubmittedDetails : true});
+            set({ hasEnteredCorrectCredentials: true, hasSubmittedDetails: true, hasCameToOtpPage: false });
             toast.success("OTP submitted")
         } catch (error) {
             toast.error(error.response.data.message);
